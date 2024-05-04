@@ -1,9 +1,63 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Container, VStack, Text, Button, Input, Select, Textarea, IconButton, useToast, Box, Heading, List, ListItem, ListIcon, CloseButton } from "@chakra-ui/react";
 import { FaPlus, FaRegSmileBeam, FaRegSadCry, FaRegMeh, FaRegAngry, FaTrash } from "react-icons/fa";
 
+const API_URL = "https://akgwhrzpkzylzlvebfwe.supabase.co";
+const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrZ3docnpwa3p5bHpsdmViZndlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTQ4MzY2MTQsImV4cCI6MjAzMDQxMjYxNH0.UV67rqIJ2akvTxDJ2QQKnFWTQ1Eey_2VqmhDRa4mC1s";
+
+const fetchMoods = async () => {
+  const response = await fetch(`${API_URL}/moods`, {
+    headers: {
+      "Content-Type": "application/json",
+      apikey: API_KEY,
+      Authorization: `Bearer ${API_KEY}`,
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch moods");
+  }
+  return response.json();
+};
+
+const postMood = async (moodData) => {
+  const response = await fetch(`${API_URL}/moods`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: API_KEY,
+      Authorization: `Bearer ${API_KEY}`,
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(moodData),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to post mood");
+  }
+  return response.json();
+};
+
+const deleteMood = async (id) => {
+  const response = await fetch(`${API_URL}/moods?id=eq.${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: API_KEY,
+      Authorization: `Bearer ${API_KEY}`,
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Failed to delete mood");
+  }
+};
+
 const Index = () => {
   const [moods, setMoods] = useState([]);
+
+  useEffect(() => {
+    fetchMoods()
+      .then(setMoods)
+      .catch((error) => console.error("Failed to load moods:", error));
+  }, []);
   const [mood, setMood] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 16));
@@ -21,14 +75,13 @@ const Index = () => {
       return;
     }
 
-    const newMood = {
-      id: Date.now(),
-      mood,
-      description,
-      date,
-    };
+    const newMood = { mood, description, date };
 
-    setMoods([...moods, newMood]);
+    postMood(newMood)
+      .then((addedMood) => {
+        setMoods([...moods, addedMood[0]]);
+      })
+      .catch((error) => console.error("Failed to add mood:", error));
     setMood("");
     setDescription("");
     setDate(new Date().toISOString().slice(0, 16));
@@ -42,7 +95,11 @@ const Index = () => {
   };
 
   const handleDeleteMood = (id) => {
-    setMoods(moods.filter((mood) => mood.id !== id));
+    deleteMood(id)
+      .then(() => {
+        setMoods(moods.filter((mood) => mood.id !== id));
+      })
+      .catch((error) => console.error("Failed to delete mood:", error));
     toast({
       title: "Mood Deleted",
       description: "Your mood has been deleted!",
